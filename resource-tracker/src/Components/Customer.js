@@ -59,7 +59,7 @@ const Customer = () => {
   useEffect(() => {
     fetchCustomers();
     const pieUrl = getPowerBIUrl('customers', 'line');
-    setPowerBiUrlState(pieUrl); // ✅ correctly use the state setter
+    setPowerBiUrlState(pieUrl); 
   }, []);
 
   return (
