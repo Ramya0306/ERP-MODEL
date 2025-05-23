@@ -153,13 +153,13 @@ const Order = () => {
             </Spin>
           </Card>
 
-          <Card title="Order Analytics (Pie Chart)" style={{ marginBottom: '20px' }}>
+          <Card title="Order Analytics " style={{ marginBottom: '20px' }}>
             {powerBiUrl ? (
               <iframe
                 title="Power BI Order Pie Chart"
                 width="900"
                 height="700"
-                src={powerBiUrl}
+                src='https://app.powerbi.com/view?r=eyJrIjoiMWFiNDRkNGEtYWQxMC00MzhmLWE5M2ItM2FjNzNiNTM4NjIyIiwidCI6ImNkYmI0MzAwLWFkZDEtNGEwNy1hYjMxLThjZDZmYzBmYjNjMiJ9'
                 frameBorder="0"
                 allowFullScreen
               />

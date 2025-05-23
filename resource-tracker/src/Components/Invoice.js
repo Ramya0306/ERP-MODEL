@@ -118,13 +118,13 @@ const Invoice = () => {
           </Spin>
         </Card>
 
-        <Card title="Invoice Trends (Line Chart)" style={{ marginTop: 20 }}>
+        <Card title="Invoice Trends " style={{ marginTop: 20 }}>
           {powerBiUrl ? (
             <iframe
               title="Power BI Invoice Line Chart"
               width="900"
               height="700"
-              src={powerBiUrl}
+              src='https://app.powerbi.com/view?r=eyJrIjoiYTg5N2ZmMWUtZDVhMy00ZWVlLTljYWQtZmQ1MWI4MjlhMTEwIiwidCI6ImNkYmI0MzAwLWFkZDEtNGEwNy1hYjMxLThjZDZmYzBmYjNjMiJ9'
               frameBorder="0"
               allowFullScreen
             />

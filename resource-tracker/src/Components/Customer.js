@@ -118,13 +118,13 @@ const Customer = () => {
             </Spin>
           </Card>
 
-          <Card title="Customer Trends (Line Chart)">
+          <Card title="Customer Trends ">
             {powerBiUrl ? (
               <iframe
                 title="Power BI Customer Line Chart"
                 width="1000"
                 height="700"
-                src={powerBiUrl}
+                src='https://app.powerbi.com/view?r=eyJrIjoiMTRiZGM3ZjItZGU4Ny00MDI4LWJhNjMtNWRlMTE2M2Y0YTAxIiwidCI6ImNkYmI0MzAwLWFkZDEtNGEwNy1hYjMxLThjZDZmYzBmYjNjMiJ9'
                 frameBorder="0"
                 allowFullScreen
               />
