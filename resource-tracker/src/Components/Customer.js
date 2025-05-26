@@ -5,7 +5,7 @@ import { LoadingOutlined } from '@ant-design/icons';
 import { getPowerBIUrl } from './powerBiUrls';
 
 const Customer = () => {
-  const [customer, setCustomer] = useState({ name: '', contact: '', email: '', date: '' });
+  const [customer, setCustomer] = useState({ name: '', contact: '', email: '', date: '',location:'' });
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -29,7 +29,7 @@ const Customer = () => {
     try {
       const response = await axios.post('http://192.168.0.89:8080/api/customer', customer);
       setCustomers([...customers, response.data]);
-      setCustomer({ name: '', contact: '', email: '', date: '' ,customerId: ''});
+      setCustomer({ name: '', contact: '', email: '', date: '' ,customerId: '',location:''});
       notification.success({ message: 'Customer added successfully!' });
       fetchCustomers();
     } catch (error) {
@@ -50,6 +50,7 @@ const Customer = () => {
     { title: 'Contact', dataIndex: 'contact', key: 'contact' },
     { title: 'Email', dataIndex: 'email', key: 'email' },
     { title: 'Date', dataIndex: 'date', key: 'date' },
+    {title:'Location',dataIndex:'loaction',key:'location'},
   ];
 
   const handleDateChange = (date, dateString) => {
@@ -64,7 +65,7 @@ const Customer = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <Row gutter={16}>
+      <Row gutter={18}>
         <Col span={24}>
           <Card title="Add Customer" style={{ marginBottom: '20px' }}>
             <Form layout="inline" onSubmitCapture={handleSubmit}>
@@ -72,6 +73,7 @@ const Customer = () => {
                 <Input
                   name="name"
                   value={customer.name}
+                  
                   placeholder="Name"
                   onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
                 />
@@ -79,6 +81,7 @@ const Customer = () => {
               <Form.Item label="Contact">
                 <Input
                   name="contact"
+                  
                   value={customer.contact}
                   placeholder="Contact"
                   onChange={(e) => setCustomer({ ...customer, contact: e.target.value })}
@@ -87,6 +90,7 @@ const Customer = () => {
               <Form.Item label="Email">
                 <Input
                   name="email"
+                  
                   value={customer.email}
                   placeholder="Email"
                   onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
@@ -98,6 +102,7 @@ const Customer = () => {
                   onChange={handleDateChange}
                   format="YYYY-MM-DD"
                 />
+                
               </Form.Item>
               <Form.Item>
                 <Button type="primary" htmlType="submit" loading={submitting}>
