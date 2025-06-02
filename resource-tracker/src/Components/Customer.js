@@ -94,7 +94,9 @@ const Customer = () => {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("http://192.168.0.140:8080/api/customer");
+      const response = await axios.get(
+        "http://192.168.0.140:8080/api/customer"
+      );
       setCustomers(response.data);
       logAuditTrail({
         action: "Viewed Customer Table",
