@@ -19,7 +19,7 @@ import {
 import axios from "axios";
 import { getPowerBIUrl } from "./powerBiUrls";
 import dayjs from "dayjs";
-import logAuditTrail from "./AuditPage";
+import { logAuditTrail } from "./AuditPage";
 
 const EditableCell = ({
   editing,
@@ -94,16 +94,8 @@ const Customer = () => {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        "http://192.168.0.140:8080/api/customer"
-      );
+      const response = await axios.get("http://192.168.0.140:4001/api/customer");
       setCustomers(response.data);
-      logAuditTrail({
-        action: "Viewed Customer Table",
-        endpoint: "/api/customer",
-        method: "READ",
-        entityName: "Customer",
-      });
     } catch (error) {
       console.error("Error fetching customer data:", error);
     } finally {
@@ -116,30 +108,112 @@ const Customer = () => {
     setSubmitting(true);
     try {
       const response = await axios.post(
-        "http://192.168.0.140:8080/api/customer",
+        "http://192.168.0.140:4001/api/customer",
         customer
       );
       setCustomers([...customers, response.data]);
       notification.success({ message: "Customer added successfully!" });
-      fetchCustomers();
-
-      logAuditTrail({
+      
+      await logAuditTrail({
+        ipAddress,
         action: "Created new customer",
         endpoint: "/api/customer",
-        method: "CREATE",
+        method: "POST",
         entityName: "Customer",
+        oldData: null,
+        newData: response.data,
       });
 
       setCustomer({ name: "", contact: "", email: "", date: "", location: "" });
     } catch (error) {
-      console.error("Error adding customer:", error);
-      notification.error({
-        message: "Error",
-        description: "There was an error. Please try again later.",
-        placement: "top",
-      });
+      notification.error({ message: "Failed to add customer" });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  save = async () => {
+    try {
+      const row = await form.validateFields();
+      const originalCustomer = customers.find((c) => c.id === editingId);
+      
+      // Track changed fields
+      const changes = {};
+      const updatedCustomer = { ...originalCustomer };
+      
+      // Check each field for changes
+      const fieldsToCheck = ['name', 'contact', 'email', 'date', 'location'];
+      fieldsToCheck.forEach(field => {
+        if (field === 'date') {
+          const newDate = row[field] ? row[field].format('YYYY-MM-DD') : '';
+          if (newDate !== originalCustomer[field]) {
+            changes[field] = newDate;
+            updatedCustomer[field] = newDate;
+          }
+        } else if (row[field] !== originalCustomer[field]) {
+          changes[field] = row[field];
+          updatedCustomer[field] = row[field];
+        }
+      });
+
+      if (Object.keys(changes).length > 0) {
+        const response = await axios.put(
+          `http://192.168.0.140:4001/api/customer/${editingId}`,
+          updatedCustomer
+        );
+
+        setCustomers(customers.map((item) =>
+          item.id === editingId ? response.data : item
+        ));
+        setEditingId("");
+        notification.success({ message: "Customer updated successfully!" });
+
+        // Prepare audit data with only changed fields
+        const oldData = {};
+        const newData = {};
+        
+        Object.keys(changes).forEach(key => {
+          oldData[key] = originalCustomer[key];
+          newData[key] = updatedCustomer[key];
+        });
+
+        await logAuditTrail({
+          ipAddress,
+          action: `Updated customer ID ${editingId}`,
+          endpoint: `/api/customer/${editingId}`,
+          method: "PUT",
+          entityName: "Customer",
+          oldData,
+          newData,
+          changedFields: Object.keys(changes), // Add list of changed fields
+        });
+      } else {
+        notification.info({ message: "No changes detected" });
+        setEditingId("");
+      }
+    } catch (errInfo) {
+      console.error("Failed to save updated customer:", errInfo);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      const customerToDelete = customers.find((c) => c.id === id);
+      await axios.delete(`http://192.168.0.140:4001/api/customer/${id}`);
+      setCustomers(customers.filter((c) => c.id !== id));
+      notification.success({ message: "Customer deleted successfully!" });
+
+      await logAuditTrail({
+        ipAddress,
+        action: `Deleted customer ID ${id}`,
+        endpoint: `/api/customer/${id}`,
+        method: "DELETE",
+        entityName: "Customer",
+        oldData: customerToDelete,
+        newData: null,
+      });
+    } catch (err) {
+      notification.error({ message: "Failed to delete customer" });
     }
   };
 
@@ -156,59 +230,16 @@ const Customer = () => {
     setEditingId(record.id);
   };
 
-  save = async () => {
-    try {
-      const row = await form.validateFields();
-      const original = customers.find((c) => c.id === editingId);
-      const updatedCustomer = {
-        ...row,
-        id: editingId,
-        date: row.date ? row.date.format("YYYY-MM-DD") : "",
-      };
-
-      await axios.put(
-        `http://192.168.0.140:8080/api/customer/${editingId}`,
-        updatedCustomer
-      );
-
-      const newData = customers.map((item) =>
-        item.id === editingId ? { ...item, ...updatedCustomer } : item
-      );
-      setCustomers(newData);
-      setEditingId("");
-      notification.success({ message: "Customer updated successfully!" });
-
-      logAuditTrail({
-        action: `Updated customer with ID ${editingId}`,
-        endpoint: `/api/customer/${editingId}`,
-        method: "UPDATE",
-        entityName: "Customer",
-      });
-    } catch (errInfo) {
-      console.error("Validate Failed:", errInfo);
-    }
+  const handleDateChange = (date, dateString) => {
+    setCustomer({ ...customer, date: dateString });
   };
 
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete(`http://192.168.0.140:8080/api/customer/${id}`);
-      setCustomers(customers.filter((c) => c.id !== id));
-      notification.success({ message: "Customer deleted and audit logged!" });
-
-      logAuditTrail({
-        action: `Deleted customer with ID ${id}`,
-        endpoint: `/api/customer/${id}`,
-        method: "DELETE",
-        entityName: "Customer",
-      });
-    } catch (err) {
-      console.error("Error deleting:", err);
-      notification.error({
-        message: "Delete failed",
-        description: "Could not delete customer",
-      });
-    }
-  };
+  useEffect(() => {
+    fetchIp();
+    fetchCustomers();
+    const pieUrl = getPowerBIUrl("customers", "line");
+    setPowerBiUrlState(pieUrl);
+  }, []);
 
   const columns = [
     { title: "Name", dataIndex: "name", key: "name", editable: true },
@@ -273,17 +304,6 @@ const Customer = () => {
       }),
     };
   });
-
-  const handleDateChange = (date, dateString) => {
-    setCustomer({ ...customer, date: dateString });
-  };
-
-  useEffect(() => {
-    fetchCustomers();
-    fetchIp();
-    const pieUrl = getPowerBIUrl("customers", "line");
-    setPowerBiUrlState(pieUrl);
-  }, []);
 
   return (
     <div style={{ padding: "20px" }}>

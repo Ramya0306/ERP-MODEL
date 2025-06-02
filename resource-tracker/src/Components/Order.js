@@ -12,8 +12,9 @@ import {
   notification,
 } from 'antd';
 import axios from 'axios';
-import { LoadingOutlined } from '@ant-design/icons';
+import { LoadingOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getPowerBIUrl } from './powerBiUrls';
+import  logAuditTrail  from './AuditPage';
 
 const { Option } = Select;
 
@@ -30,6 +31,17 @@ const Order = () => {
     status: '',
   });
   const [customerId, setCustomerId] = useState('');
+  const [ipAddress, setIpAddress] = useState('');
+
+  const fetchIp = async () => {
+    try {
+      const res = await axios.get("https://api.ipify.org?format=json");
+      setIpAddress(res.data.ip);
+    } catch (err) {
+      console.warn("Could not fetch IP address:", err);
+      setIpAddress("unknown");
+    }
+  };
 
   const isEditing = (record) => record.orderId === editingKey;
 
@@ -38,6 +50,7 @@ const Order = () => {
     try {
       const response = await axios.get('http://192.168.0.140:8080/api/orders');
       setOrders(response.data);
+      
     } catch (error) {
       notification.error({
         message: 'Error',
@@ -50,6 +63,7 @@ const Order = () => {
   };
 
   useEffect(() => {
+    fetchIp();
     fetchOrders();
     const pieUrl = getPowerBIUrl('orders', 'pie');
     setPowerBiUrl(pieUrl);
@@ -77,10 +91,11 @@ const Order = () => {
 
       if (index > -1) {
         const item = newData[index];
+        const oldData = { ...item };
         const updated = { ...item, ...row };
 
         await axios.put(
-          `http://192.168.0.72:8080/api/orders/${orderId}`,
+          `http://192.168.0.140:8080/api/orders/${orderId}`,
           updated,
           {
             headers: {
@@ -93,6 +108,16 @@ const Order = () => {
         setOrders(newData);
         setEditingKey('');
         notification.success({ message: 'Order updated successfully!' });
+
+        await logAuditTrail({
+          ipAddress,
+          action: `Updated order with ID ${orderId}`,
+          endpoint: `/api/orders/${orderId}`,
+          method: "UPDATE",
+          entityName: "Order",
+          oldData: oldData,
+          newData: updated,
+        });
       } else {
         setEditingKey('');
       }
@@ -108,9 +133,20 @@ const Order = () => {
 
   const handleDelete = async (orderId) => {
     try {
+      const orderToDelete = orders.find(order => order.orderId === orderId);
       await axios.delete(`http://192.168.0.140:8080/api/orders/${orderId}`);
       setOrders((prev) => prev.filter((order) => order.orderId !== orderId));
       notification.success({ message: 'Order deleted successfully!' });
+
+      await logAuditTrail({
+        ipAddress,
+        action: `Deleted order with ID ${orderId}`,
+        endpoint: `/api/orders/${orderId}`,
+        method: "DELETE",
+        entityName: "Order",
+        oldData: orderToDelete,
+        newData: null,
+      });
     } catch (error) {
       notification.error({
         message: 'Error',
@@ -140,7 +176,7 @@ const Order = () => {
     };
 
     try {
-      await axios.post(
+      const response = await axios.post(
         `http://192.168.0.140:8080/api/orders?customerId=${customerId}`,
         payload,
         {
@@ -154,6 +190,16 @@ const Order = () => {
       setOrder({ orderId: '', amount: '', status: '' });
       setCustomerId('');
       fetchOrders();
+
+      await logAuditTrail({
+        ipAddress,
+        action: "Created new order",
+        endpoint: "/api/orders",
+        method: "CREATE",
+        entityName: "Order",
+        oldData: null,
+        newData: payload,
+      });
     } catch (error) {
       console.error('Order submission failed:', error);
       notification.error({
@@ -199,7 +245,7 @@ const Order = () => {
             style={{ margin: 0 }}
             rules={[
               {
-                required: dataIndex !== 'status', // status can be empty? But we treat as required
+                required: true,
                 message: `Please Input ${title}!`,
               },
             ]}
@@ -259,41 +305,35 @@ const Order = () => {
       },
     },
     {
-      title: 'Actions',
+      title: '',
       dataIndex: 'actions',
       render: (_, record) => {
         const editable = isEditing(record);
         return editable ? (
-          <span>
+          <span style={{ display: "flex", gap: "10px" }}>
             <Button
               onClick={() => save(record.orderId)}
               type="link"
-              style={{ marginRight: 8 }}
-            >
-              Save
-            </Button>
-            <Button onClick={cancel} type="link">
-              Cancel
-            </Button>
+              icon={<EditOutlined style={{ color: "#1890ff" }} />}
+            />
+            <Button
+              onClick={cancel}
+              type="link"
+              icon={<DeleteOutlined style={{ color: "#ff4d4f" }} />}
+            />
           </span>
         ) : (
-          <span>
-            <Button
-              disabled={editingKey !== ''}
+          <span style={{ display: "flex", gap: "10px" }}>
+            <EditOutlined
+              style={{ color: "#1890ff", cursor: "pointer" }}
               onClick={() => edit(record)}
-              type="link"
-              style={{ marginRight: 8 }}
-            >
-              Edit
-            </Button>
-            <Button
               disabled={editingKey !== ''}
+            />
+            <DeleteOutlined
+              style={{ color: "#ff4d4f", cursor: "pointer" }}
               onClick={() => handleDelete(record.orderId)}
-              type="link"
-              danger
-            >
-              Delete
-            </Button>
+              disabled={editingKey !== ''}
+            />
           </span>
         );
       },
