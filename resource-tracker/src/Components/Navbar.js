@@ -7,6 +7,7 @@ import {
   UserAddOutlined,
   ShoppingCartOutlined,
   FileDoneOutlined,  
+  FileSearchOutlined,
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -33,6 +34,9 @@ const Navbar = () => {
         </Menu.Item>
         <Menu.Item key="4" icon={<FileDoneOutlined />}>
           <Link to="/invoice">Invoices</Link>
+        </Menu.Item>
+        <Menu.Item key="5" icon={<FileSearchOutlined />}>
+          <Link to="/logAuditTrail">Audit Logs</Link>
         </Menu.Item>
       </Menu>
     </Sider>

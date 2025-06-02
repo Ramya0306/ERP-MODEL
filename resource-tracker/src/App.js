@@ -5,7 +5,7 @@ import Dashboard from './Components/Dashboard';
 import Customer from './Components/Customer';
 import Order from './Components/Order';
 import Invoice from './Components/Invoice'; 
-
+import LogAuditTrail from './Components/AuditPage';
 import { Layout } from 'antd'
 const { Content } = Layout;
 const App = () => {
@@ -27,7 +27,7 @@ const App = () => {
               <Route path="/customer" element={<Customer />} />
               <Route path="/order" element={<Order />} />
               <Route path="/invoice" element={<Invoice />} /> 
-              
+              <Route path="/logAuditTrail" element={<LogAuditTrail/>}/>
             </Routes>
           </Content>
         </Layout>

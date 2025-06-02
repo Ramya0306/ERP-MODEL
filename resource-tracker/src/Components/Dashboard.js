@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Row, Col, Card, Select, Button, Typography } from 'antd';
 import { getPowerBIUrl } from './powerBiUrls';
+
 const { Option } = Select;
 const { Title, Paragraph } = Typography;
+
 
 const Dashboard = () => {
   const [chartType, setChartType] = useState();
@@ -19,6 +21,7 @@ const Dashboard = () => {
   return (
     <div style={{ padding: 24 }}>
       <Card title="Resource Tracker Dashboard">
+        
         <Title level={2}>Performance Overview</Title>
         <Paragraph>Select options below to generate a Power BI report.</Paragraph>
       </Card>
@@ -76,6 +79,7 @@ const Dashboard = () => {
               </p>
             )}
           </Card>
+          
         </Col>
       </Row>
     </div>
