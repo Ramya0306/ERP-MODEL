@@ -19,7 +19,7 @@ import {
 import axios from "axios";
 import { getPowerBIUrl } from "./powerBiUrls";
 import dayjs from "dayjs";
-import { logAuditTrail } from "./AuditPage";
+import  logAuditTrail from "./AuditPage";
 
 const EditableCell = ({
   editing,
@@ -132,69 +132,49 @@ const Customer = () => {
     }
   };
 
-  save = async () => {
-    try {
-      const row = await form.validateFields();
-      const originalCustomer = customers.find((c) => c.id === editingId);
-      
-      // Track changed fields
-      const changes = {};
-      const updatedCustomer = { ...originalCustomer };
-      
-      // Check each field for changes
-      const fieldsToCheck = ['name', 'contact', 'email', 'date', 'location'];
-      fieldsToCheck.forEach(field => {
-        if (field === 'date') {
-          const newDate = row[field] ? row[field].format('YYYY-MM-DD') : '';
-          if (newDate !== originalCustomer[field]) {
-            changes[field] = newDate;
-            updatedCustomer[field] = newDate;
-          }
-        } else if (row[field] !== originalCustomer[field]) {
-          changes[field] = row[field];
-          updatedCustomer[field] = row[field];
-        }
-      });
+ save = async () => {
+  try {
+    const row = await form.validateFields();
+    const originalCustomer = customers.find((c) => c.id === editingId);
 
-      if (Object.keys(changes).length > 0) {
-        const response = await axios.put(
-          `http://192.168.0.140:4001/api/customer/${editingId}`,
-          updatedCustomer
-        );
+    // Always prepare the full updated object (even if some fields weren't edited)
+    const updatedCustomer = {
+      ...originalCustomer,
+      name: row.name || originalCustomer.name,
+      contact: row.contact || originalCustomer.contact,
+      email: row.email || originalCustomer.email,
+      date: row.date ? row.date.format('YYYY-MM-DD') : originalCustomer.date,
+      location: row.location || originalCustomer.location,
+    };
 
-        setCustomers(customers.map((item) =>
-          item.id === editingId ? response.data : item
-        ));
-        setEditingId("");
-        notification.success({ message: "Customer updated successfully!" });
+    // Update regardless of whether changes exist (per your request)
+    const response = await axios.put(
+      `http://192.168.0.140:4001/api/customer/${editingId}`,
+      updatedCustomer
+    );
 
-        // Prepare audit data with only changed fields
-        const oldData = {};
-        const newData = {};
-        
-        Object.keys(changes).forEach(key => {
-          oldData[key] = originalCustomer[key];
-          newData[key] = updatedCustomer[key];
-        });
+    setCustomers(customers.map((item) =>
+      item.id === editingId ? response.data : item
+    ));
+    setEditingId("");
+    notification.success({ message: "Customer updated successfully!" });
 
-        await logAuditTrail({
-          ipAddress,
-          action: `Updated customer ID ${editingId}`,
-          endpoint: `/api/customer/${editingId}`,
-          method: "PUT",
-          entityName: "Customer",
-          oldData,
-          newData,
-          changedFields: Object.keys(changes), // Add list of changed fields
-        });
-      } else {
-        notification.info({ message: "No changes detected" });
-        setEditingId("");
-      }
-    } catch (errInfo) {
-      console.error("Failed to save updated customer:", errInfo);
-    }
-  };
+    // Log FULL old/new data (even if unchanged)
+    await logAuditTrail({
+      ipAddress,
+      action: `Updated customer ID ${editingId}`,
+      endpoint: `/api/customer/${editingId}`,
+      method: "PUT",
+      entityName: "Customer",
+      oldData: JSON.stringify(originalCustomer), // Full original object
+      newData: JSON.stringify(updatedCustomer), // Full updated object
+    });
+
+  } catch (errInfo) {
+    console.error("Failed to save customer:", errInfo);
+    notification.error({ message: "Failed to update customer" });
+  }
+};
 
   const handleDelete = async (id) => {
     try {

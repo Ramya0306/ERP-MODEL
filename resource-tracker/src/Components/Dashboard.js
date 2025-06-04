@@ -43,6 +43,7 @@ const Dashboard = () => {
               <Option value="pie">Pie Chart</Option>
               <Option value="line">Line Graph</Option>
               <Option value="bar">Bar Graph</Option>
+              <Option value=""></Option>
             </Select>
           </Card>
         </Col>

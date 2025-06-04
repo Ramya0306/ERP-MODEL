@@ -35,7 +35,33 @@ const LogAuditTrail = () => {
     setLoading(true);
     try {
       const res = await axios.get('http://192.168.0.140:4001/api/audit');
-      setAuditData(res.data);
+      
+      const deduplicatedData = res.data.reduce((acc, current) => {
+        if (current.endpoint === '/api/audit' && current.method === 'GET' || 
+            current.endpoint === '/api/customer' && current.method === 'GET') {
+          return acc;
+        }
+        
+        const existingIndex = acc.findIndex(item => 
+          Math.abs(dayjs(item.timestamp).diff(current.timestamp, 'second')) < 2 &&
+          item.entityName === current.entityName &&
+          item.method === current.method
+        );
+        
+        if (existingIndex === -1) {
+          return [...acc, current];
+        }
+        
+        if (current.method === 'PUT' && current.action.length > acc[existingIndex].action.length) {
+          const newAcc = [...acc];
+          newAcc[existingIndex] = current;
+          return newAcc;
+        }
+        
+        return acc;
+      }, []);
+      
+      setAuditData(deduplicatedData);
     } catch (error) {
       console.error('Failed to fetch audit data', error);
       notification.error({ message: 'Failed to load audit logs' });
@@ -49,27 +75,31 @@ const LogAuditTrail = () => {
   }, []);
 
   const formatData = (data) => {
-    if (!data) return 'N/A';
+    if (!data) return 'NULL';
+    
     try {
       const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+      
       return (
-        <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+        <pre style={{ 
+          margin: 0,
+          whiteSpace: 'pre-wrap',
+          wordWrap: 'break-word',
+          maxWidth: '300px'
+        }}>
           {Object.entries(parsed).map(([key, value]) => (
-            <div key={key} style={{ marginBottom: 4 }}>
+            <div key={key}>
               <strong>{key}:</strong> {String(value)}
             </div>
           ))}
-        </div>
+        </pre>
       );
     } catch (e) {
-      return String(data);
+      return <pre style={{ margin: 0 }}>{String(data)}</pre>;
     }
   };
 
   const filteredAuditData = auditData.filter(item => {
-    const isAuditLogFetch = item.endpoint === '/api/audit' && item.method === 'GET';
-    if (isAuditLogFetch) return false;
-
     const matchesEntity = filter === 'All' || item.entityName === filter;
     const matchesSearch = searchText === '' || 
       item.action.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -128,7 +158,6 @@ const LogAuditTrail = () => {
       dataIndex: 'method',
       key: 'method',
       width: 100,
-      render: (method) => <span>{method}</span>,
     },
     {
       title: 'Entity',
@@ -216,16 +245,3 @@ const LogAuditTrail = () => {
 };
 
 export default LogAuditTrail;
-
-export const logAuditTrail = async (auditData) => {
-  try {
-    await axios.post('http://192.168.0.140:4001/api/audit', {
-      ...auditData,
-      timestamp: new Date().toISOString(),
-      oldData: auditData.oldData ? JSON.stringify(auditData.oldData) : null,
-      newData: auditData.newData ? JSON.stringify(auditData.newData) : null,
-    });
-  } catch (error) {
-    console.error('Failed to log audit trail:', error);
-  }
-};
