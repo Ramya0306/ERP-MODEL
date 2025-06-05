@@ -38,7 +38,7 @@ const LogAuditTrail = () => {
       
       const deduplicatedData = res.data.reduce((acc, current) => {
         if (current.endpoint === '/api/audit' && current.method === 'GET' || 
-            current.endpoint === '/api/customer' && current.method === 'GET') {
+            current.endpoint === '/api/customer' && current.method === 'GET'|| current.endpoint === '/api/orders' && current.method === 'GET'|| current.endpoint === '/api/invoice' && current.method === 'GET') {
           return acc;
         }
         
@@ -53,6 +53,11 @@ const LogAuditTrail = () => {
         }
         
         if (current.method === 'PUT' && current.action.length > acc[existingIndex].action.length) {
+          const newAcc = [...acc];
+          newAcc[existingIndex] = current;
+          return newAcc;
+        }
+         if (current.method === 'POST' && current.action.length > acc[existingIndex].action.length) {
           const newAcc = [...acc];
           newAcc[existingIndex] = current;
           return newAcc;
@@ -132,6 +137,8 @@ const LogAuditTrail = () => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     saveAs(blob, `audit_logs_${dayjs().format('YYYY-MM-DD_HH-mm-ss')}.csv`);
   };
+  
+
 
   const columns = [
     {

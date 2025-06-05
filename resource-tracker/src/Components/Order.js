@@ -14,7 +14,6 @@ import {
 import axios from 'axios';
 import { LoadingOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getPowerBIUrl } from './powerBiUrls';
-import logAuditTrail from './AuditPage';
 
 const { Option } = Select;
 
@@ -28,20 +27,17 @@ const EditableCell = ({
   children,
   ...restProps
 }) => {
-  let inputNode;
-  if (dataIndex === 'status') {
-    inputNode = (
-      <Select>
-        <Option value="Pending">Pending</Option>
-        <Option value="Completed">Completed</Option>
-        <Option value="Cancelled">Cancelled</Option>
-      </Select>
-    );
-  } else if (inputType === 'number') {
-    inputNode = <Input type="number" />;
-  } else {
-    inputNode = <Input />;
-  }
+  const inputNode = dataIndex === 'status' ? (
+    <Select>
+      <Option value="Pending">Pending</Option>
+      <Option value="Completed">Completed</Option>
+      <Option value="Cancelled">Cancelled</Option>
+    </Select>
+  ) : inputType === 'number' ? (
+    <Input type="number" />
+  ) : (
+    <Input />
+  );
 
   return (
     <td {...restProps}>
@@ -65,32 +61,21 @@ const EditableCell = ({
   );
 };
 
-let save;
-
 const Order = () => {
   const [form] = Form.useForm();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [powerBiUrl, setPowerBiUrl] = useState(null);
   const [editingId, setEditingId] = useState('');
+  const [customerId, setCustomerId] = useState('');
   const [order, setOrder] = useState({
     orderId: '',
     amount: '',
+    quantity: '',
+    product: '',
     status: '',
   });
-  const [customerId, setCustomerId] = useState('');
-  const [ipAddress, setIpAddress] = useState('');
-
-  const fetchIp = async () => {
-    try {
-      const res = await axios.get("https://api.ipify.org?format=json");
-      setIpAddress(res.data.ip);
-    } catch (err) {
-      console.warn("Could not fetch IP address:", err);
-      setIpAddress("unknown");
-    }
-  };
+  const [powerBiUrl, setPowerBiUrl] = useState(null);
 
   const isEditing = (record) => record.orderId === editingId;
 
@@ -102,6 +87,7 @@ const Order = () => {
     } catch (error) {
       notification.error({
         message: 'Error',
+        description: 'Failed to fetch orders',
         placement: 'top',
       });
     } finally {
@@ -110,103 +96,72 @@ const Order = () => {
   };
 
   useEffect(() => {
-    fetchIp();
     fetchOrders();
-    const pieUrl = getPowerBIUrl('orders', 'pie');
-    setPowerBiUrl(pieUrl);
+    setPowerBiUrl(getPowerBIUrl('orders', 'pie'));
   }, []);
 
   const edit = (record) => {
     form.setFieldsValue({
       amount: record.amount,
       status: record.status,
+      quantity: record.quantity,
+      product: record.product,
     });
     setEditingId(record.orderId);
   };
 
-  save = async () => {
-    try {
-      const row = await form.validateFields();
-      const originalOrder = orders.find((o) => o.orderId === editingId);
+const save = async () => {
+  try {
+    const row = await form.validateFields();
+    const originalOrder = orders.find((o) => o.orderId === editingId);
 
-      const changes = {};
-      const updatedOrder = { ...originalOrder };
+    const updatedOrder = {
+      orderId: originalOrder.orderId,
+      amount: parseFloat(row.amount),
+      quantity: row.quantity,
+      status: row.status,
+      product: row.product,
+    };
 
-      // Check for changes in all fields
-      const fieldsToCheck = ['amount', 'status'];
-      fieldsToCheck.forEach(field => {
-        if (row[field] !== originalOrder[field]) {
-          changes[field] = row[field];
-          updatedOrder[field] = row[field];
-        }
-      });
+    const customerId = originalOrder.customer?.id;
 
-      // Always assign full old/new data for logging, regardless of changes
-      const oldData = { ...originalOrder };
-      const newData = { ...updatedOrder };
-
-      if (Object.keys(changes).length > 0) {
-        const response = await axios.put(
-          `http://192.168.0.140:4001/api/orders/${editingId}`,
-          updatedOrder,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-
-        setOrders(orders.map((item) =>
-          item.orderId === editingId ? response.data : item
-        ));
-        setEditingId("");
-        notification.success({ message: 'Order updated successfully!' });
-      } else {
-        notification.info({ message: "No changes detected" });
-        setEditingId("");
+    const response = await axios.put(
+      `http://192.168.0.140:4001/api/orders/${editingId}?customerId=${customerId}`,
+      updatedOrder,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
       }
+    );
 
-      // Log audit trail regardless of UI update
-      await logAuditTrail({
-        ipAddress,
-        action: `Updated order ID ${editingId}`,
-        endpoint: `/api/orders/${editingId}`,
-        method: "PUT",
-        entityName: "Order",
-        oldData: JSON.stringify(oldData),
-        newData: JSON.stringify({
-          orderId: editingId,
-          amount: row.amount || originalOrder.amount,
-          status: row.status || originalOrder.status,
-          customer: originalOrder.customer // Preserve customer data
-        }),
-      });
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.orderId === editingId ? response.data : order
+      )
+    );
+    setEditingId('');
+    notification.success({ message: 'Order updated successfully!' });
+  } catch (error) {
+    console.error("Update failed:", error);
+    notification.error({
+      message: 'Update failed',
+      description: error?.response?.data?.message || 'Could not update order',
+      placement: 'top',
+    });
+  }
+};
 
-    } catch (errInfo) {
-      console.error("Failed to save updated order:", errInfo);
-    }
-  };
 
   const handleDelete = async (orderId) => {
     try {
-      const orderToDelete = orders.find(order => order.orderId === orderId);
       await axios.delete(`http://192.168.0.140:4001/api/orders/${orderId}`);
       setOrders((prev) => prev.filter((order) => order.orderId !== orderId));
       notification.success({ message: 'Order deleted successfully!' });
-
-      await logAuditTrail({
-        ipAddress,
-        action: `Deleted order with ID ${orderId}`,
-        endpoint: `/api/orders/${orderId}`,
-        method: "DELETE",
-        entityName: "Order",
-        oldData: orderToDelete,
-        newData: null,
-      });
     } catch (error) {
       notification.error({
-        message: 'Error',
-        description: 'Failed to delete order.',
+        message: 'Delete failed',
+        description: 'Could not delete order',
         placement: 'top',
       });
     }
@@ -224,43 +179,28 @@ const Order = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-
     const payload = {
       orderId: order.orderId,
       amount: parseFloat(order.amount),
       status: order.status,
+      quantity: order.quantity,
+      product: order.product,
     };
 
     try {
-      const response = await axios.post(
+      await axios.post(
         `http://192.168.0.140:4001/api/orders?customerId=${customerId}`,
         payload,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
+        { headers: { 'Content-Type': 'application/json' } }
       );
-
       notification.success({ message: 'Order added successfully!' });
-      setOrder({ orderId: '', amount: '', status: '' });
+      setOrder({ orderId: '', amount: '', status: '', quantity: '', product: '' });
       setCustomerId('');
       fetchOrders();
-
-      await logAuditTrail({
-        ipAddress,
-        action: "Created new order",
-        endpoint: "/api/orders",
-        method: "POST",
-        entityName: "Order",
-        oldData: null,
-        newData: response.data,
-      });
     } catch (error) {
-      console.error('Order submission failed:', error);
       notification.error({
-        message: 'Error',
-        description: 'Failed to add new order.',
+        message: 'Creation failed',
+        description: 'Could not add order',
         placement: 'top',
       });
     } finally {
@@ -272,44 +212,53 @@ const Order = () => {
     {
       title: 'Order ID',
       dataIndex: 'orderId',
-      key: 'orderId',
       editable: false,
     },
     {
       title: 'Customer ID',
-      dataIndex: ['customer', 'id'],
-      key: 'customerId',
+      
       editable: false,
-      render: (_, record) => record.customer?.id || '',
+      render: (_, record) => {
+    
+    console.log('Rendering customer:', record.customer);
+    return record.customer?.id ?? 'Null';
+    },
+  },
+    {
+      title: 'Product',
+      dataIndex: 'product',
+      editable: true,
+    },
+    {
+      title: 'Quantity',
+      dataIndex: 'quantity',
+      editable: true,
     },
     {
       title: 'Total Amount',
       dataIndex: 'amount',
-      key: 'amount',
       editable: true,
     },
     {
       title: 'Status',
       dataIndex: 'status',
-      key: 'status',
       editable: true,
     },
     {
       title: '',
-      key: 'actions',
-      width: 100,
+      dataIndex: 'actions',
       render: (_, record) => {
         const editable = isEditing(record);
         return (
-          <span style={{ display: "flex", gap: "10px" }}>
+          <span style={{ display: 'flex', gap: '10px' }}>
             {!editable && (
               <EditOutlined
-                style={{ color: "#1890ff", cursor: "pointer" }}
+                style={{ color: '#1890ff', cursor: 'pointer' }}
                 onClick={() => edit(record)}
               />
             )}
             <DeleteOutlined
-              style={{ color: "#ff4d4f", cursor: "pointer" }}
+              style={{ color: '#ff4d4f', cursor: 'pointer' }}
               onClick={() => handleDelete(record.orderId)}
             />
           </span>
@@ -318,46 +267,61 @@ const Order = () => {
     },
   ];
 
-  const mergedColumns = columns.map((col) => {
-    if (!col.editable) {
-      return col;
-    }
-    return {
-      ...col,
-      onCell: (record) => ({
-        record,
-        inputType: col.dataIndex === 'amount' ? 'number' : 'text',
-        dataIndex: col.dataIndex,
-        title: col.title,
-        editing: isEditing(record),
-      }),
-    };
-  });
+  const mergedColumns = columns.map((col) =>
+    !col.editable
+      ? col
+      : {
+          ...col,
+          onCell: (record) => ({
+            record,
+            inputType: col.dataIndex === 'amount' ? 'number' : 'text',
+            dataIndex: col.dataIndex,
+            title: col.title,
+            editing: isEditing(record),
+          }),
+        }
+  );
 
   return (
     <div style={{ padding: '20px' }}>
       <Row gutter={16}>
         <Col span={24}>
           <Card title="Add New Order" style={{ marginBottom: '20px' }}>
-            <Form layout="inline" onSubmitCapture={handleSubmit}>
-              <Form.Item label="Order ID">
-                <Input
-                  name="orderId"
-                  placeholder="Order ID"
-                  value={order.orderId}
-                  onChange={handleChange}
-                />
-              </Form.Item>
+            <Form
+              layout="inline"
+              onSubmitCapture={handleSubmit}
+              style={{ display: 'flex', gap: '8px', flexWrap: 'nowrap', alignItems: 'center' }}
+            >
               <Form.Item label="Customer ID">
                 <Input
+                  style={{ width: 120 }}
                   name="customerId"
                   placeholder="Customer ID"
                   value={customerId}
                   onChange={(e) => setCustomerId(e.target.value)}
                 />
               </Form.Item>
+              <Form.Item label="Product">
+                <Input
+                  style={{ width: 120 }}
+                  name="product"
+                  placeholder="Product"
+                  value={order.product}
+                  onChange={handleChange}
+                />
+              </Form.Item>
+              <Form.Item label="Quantity">
+                <Input
+                  style={{ width: 120 }}
+                  name="quantity"
+                  placeholder="Quantity"
+                  value={order.quantity}
+                  onChange={handleChange}
+                />
+              </Form.Item>
               <Form.Item label="Amount">
                 <Input
+                  style={{ width: 120 }}
                   name="amount"
                   placeholder="Total Amount"
                   value={order.amount}
@@ -392,11 +356,7 @@ const Order = () => {
             >
               <Form form={form} component={false}>
                 <Table
-                  components={{
-                    body: {
-                      cell: EditableCell,
-                    },
-                  }}
+                  components={{ body: { cell: EditableCell } }}
                   bordered
                   dataSource={orders}
                   columns={mergedColumns}
@@ -404,9 +364,7 @@ const Order = () => {
                   pagination={{ pageSize: 5 }}
                   onRow={(record) => ({
                     onKeyDown: (event) => {
-                      if (event.key === 'Enter' && isEditing(record)) {
-                        save();
-                      }
+                      if (event.key === 'Enter' && isEditing(record)) save();
                     },
                   })}
                 />

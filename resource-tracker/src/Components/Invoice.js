@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-import { getPowerBIUrl } from "./powerBiUrls";
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -11,45 +10,60 @@ import {
   DatePicker,
   notification,
   Spin,
-  Space
-} from "antd";
-import { LoadingOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import axios from "axios";
-import dayjs from "dayjs";
+} from 'antd';
+import axios from 'axios';
+import dayjs from 'dayjs';
+import { LoadingOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { getPowerBIUrl } from './powerBiUrls';
 
 const EditableCell = ({
   editing,
   dataIndex,
   title,
-  inputType,
   record,
-  index,
+  form,
   children,
   ...restProps
 }) => {
+  const onPressEnter = () => {
+    form.submit();
+  };
+
+  let inputNode = null;
+
+  if (dataIndex === 'dueMonth') {
+    inputNode = (
+      <DatePicker
+        format="YYYY-MM-DD"
+        onPressEnter={onPressEnter}
+        onOpenChange={(open) => {
+          if (!open) {
+            form.submit();
+          }
+        }}
+      />
+    );
+  } else if (dataIndex === 'amount') {
+    inputNode = <Input type="number" onPressEnter={onPressEnter} />;
+  } else {
+    inputNode = <Input onPressEnter={onPressEnter} />;
+  }
+
   return (
     <td {...restProps}>
       {editing ? (
-        dataIndex === "dueMonth" ? (
-          <Form.Item
-            name={dataIndex}
-            style={{ margin: 0 }}
-            rules={[{ required: true, message: `Please input ${title}!` }]}
-          >
-            <DatePicker
-              format="YYYY-MM-DD"
-              style={{ width: '100%' }}
-            />
-          </Form.Item>
-        ) : (
-          <Form.Item
-            name={dataIndex}
-            style={{ margin: 0 }}
-            rules={[{ required: true, message: `Please input ${title}!` }]}
-          >
-            <Input onPressEnter={save} />
-          </Form.Item>
-        )
+        <Form.Item
+          name={dataIndex}
+          style={{ margin: 0 }}
+          rules={[
+            {
+              required: dataIndex !== 'dueMonth',
+              message: `Please input ${title}!`,
+            },
+          ]}
+        >
+          {inputNode}
+        </Form.Item>
       ) : (
         children
       )}
@@ -57,212 +71,280 @@ const EditableCell = ({
   );
 };
 
-let save; // Global save function for cell access
-
 const Invoice = () => {
   const [form] = Form.useForm();
-  const [editingId, setEditingId] = useState("");
   const [invoices, setInvoices] = useState([]);
-  const [invoice, setInvoice] = useState({ amount: "" });
-  const [customerId, setCustomerId] = useState("");
-  const [dueDate, setDueDate] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [powerBiUrl, setPowerBiUrl] = useState("");
+  const [powerBiUrl, setPowerBiUrl] = useState(null);
+  const [editingId, setEditingId] = useState('');
+  const [invoice, setInvoice] = useState({
+    invoiceId: '',
+    amount: '',
+    dueMonth: null,
+  });
+  const [customerId, setCustomerId] = useState('');
+
+  const fetchInvoices = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get('http://192.168.0.140:4001/api/invoice');
+      setInvoices(response.data);
+    } catch (error) {
+      notification.error({
+        message: 'Error',
+        description: 'Failed to fetch invoices',
+        placement: 'top',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchInvoices = async () => {
-      try {
-        const response = await axios.get("http://192.168.0.106:4001/api/invoice");
-        setInvoices(response.data);
-      } catch (error) {
-        console.error("Error fetching invoices:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchInvoices();
+    const reportUrl = getPowerBIUrl('invoices', 'line'); // example report type
+    setPowerBiUrl(reportUrl);
   }, []);
 
-  const handleDateChange = (date) => {
-    setDueDate(date);
-  };
-
-  const handleSubmit = async () => {
-    if (!customerId || !invoice.amount || !dueDate) {
-      notification.error({ message: "Please fill all fields!" });
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      const response = await axios.post(
-        "http://192.168.0.106:4001/api/invoice",
-        {
-          customerId: customerId,
-          amount: invoice.amount,
-          dueMonth: dueDate.format("YYYY-MM-DD"),
-        }
-      );
-      setInvoices([...invoices, response.data]);
-      setInvoice({ amount: "" });
-      setCustomerId("");
-      setDueDate(null);
-      notification.success({ message: "Invoice added successfully!" });
-    } catch (error) {
-      console.error("Error adding invoice:", error);
-      notification.error({ message: "Failed to add invoice." });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const isEditing = (record) => record.id === editingId;
+  const isEditing = (record) => record.invoiceId === editingId;
 
   const edit = (record) => {
     form.setFieldsValue({
       amount: record.amount,
       dueMonth: record.dueMonth ? dayjs(record.dueMonth) : null,
     });
-    setEditingId(record.id);
+    setEditingId(record.invoiceId);
   };
 
-  const handleDelete = async (id) => {
+  const save = async (values) => {
     try {
-      await axios.delete(`http://192.168.0.106:4001/api/invoice/${id}`);
-      setInvoices(invoices.filter(invoice => invoice.id !== id));
-      notification.success({ message: "Invoice deleted successfully!" });
-    } catch (error) {
-      notification.error({ message: "Failed to delete invoice" });
+      const originalInvoice = invoices.find((inv) => inv.invoiceId === editingId);
+      if (!originalInvoice) {
+        notification.error({ message: 'Invoice not found!' });
+        setEditingId('');
+        return;
+      }
+
+      const updatedInvoice = {
+        ...originalInvoice,
+        amount: parseFloat(values.amount),
+        dueMonth: values.dueMonth ? values.dueMonth.format('YYYY-MM-DD') : null,
+      };
+
+      // Assuming your backend requires customerId as query param for update
+      const customerIdForUpdate = originalInvoice.customer?.id;
+
+      const response = await axios.put(
+        `http://192.168.0.140:4001/api/invoice/${editingId}?customerId=${customerIdForUpdate}`,
+        updatedInvoice,
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      setInvoices(invoices.map((inv) =>
+        inv.invoiceId === editingId ? response.data : inv
+      ));
+      setEditingId('');
+      notification.success({ message: 'Invoice updated successfully!' });
+    } catch (err) {
+      console.error('Failed to save invoice:', err);
+      notification.error({
+        message: 'Update failed',
+        description: err?.response?.data?.message || 'Could not update invoice',
+      });
     }
   };
 
-  save = async () => {
+  const handleDelete = async (invoiceId) => {
     try {
-      const row = await form.validateFields();
-      const updatedInvoice = {
-        ...row,
-        id: editingId,
-        dueMonth: row.dueMonth.format("YYYY-MM-DD"),
-      };
+      await axios.delete(`http://192.168.0.140:4001/api/invoice/${invoiceId}`);
+      setInvoices((prev) => prev.filter((inv) => inv.invoiceId !== invoiceId));
+      notification.success({ message: 'Invoice deleted successfully!' });
+    } catch (error) {
+      notification.error({
+        message: 'Error',
+        description: 'Failed to delete invoice',
+        placement: 'top',
+      });
+    }
+  };
 
-      await axios.put(
-        `http://192.168.0.106:4001/api/invoice/${editingId}`,
-        updatedInvoice
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setInvoice((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleDateChange = (date) => {
+    setInvoice((prev) => ({ ...prev, dueMonth: date }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    const payload = {
+      amount: parseFloat(invoice.amount),
+      dueMonth: invoice.dueMonth ? invoice.dueMonth.format('YYYY-MM-DD') : null,
+    };
+
+    try {
+      const response = await axios.post(
+        `http://192.168.0.140:4001/api/invoice?customerId=${customerId}`,
+        payload,
+        { headers: { 'Content-Type': 'application/json' } }
       );
 
-      setInvoices(invoices.map(item => 
-        item.id === editingId ? { ...item, ...updatedInvoice } : item
-      ));
-      setEditingId("");
-      notification.success({ message: "Invoice updated successfully!" });
+      notification.success({ message: 'Invoice added successfully!' });
+      setInvoice({ invoiceId: '', amount: '', dueMonth: null });
+      setCustomerId('');
+      fetchInvoices();
     } catch (error) {
-      console.error("Error updating invoice:", error);
+      notification.error({
+        message: 'Error',
+        description: 'Failed to add new invoice',
+        placement: 'top',
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const columns = [
     {
-      title: "Invoice ID",
-      dataIndex: "invoiceId",
-      key: "invoiceId",
+      title: 'Invoice ID',
+      dataIndex: 'invoiceId',
+      key: 'invoiceId',
+      editable: false,
     },
     {
-      title: "Customer ID",
-      dataIndex: ["customer", "id"],
-      key: "customerId",
+      title: 'Customer ID',
+      dataIndex: ['customer', 'id'],
+      key: 'customerId',
+      editable: false,
+      render: (_, record) => record.customer?.id || '',
     },
     {
-      title: "Amount",
-      dataIndex: "amount",
-      key: "amount",
+      title: 'Amount',
+      dataIndex: 'amount',
+      key: 'amount',
       editable: true,
     },
     {
-      title: "Due Month",
-      dataIndex: "dueMonth",
-      key: "dueMonth",
+      title: 'DueMonth',
+      dataIndex: 'dueMonth',
+      key: 'dueMonth',
       editable: true,
+      render: (text) => (text ? dayjs(text).format('YYYY-MM-DD') : ''),
     },
     {
-      title: "",
-      key: "actions",
+      title: '',
+      key: 'actions',
       width: 100,
       render: (_, record) => {
         const editable = isEditing(record);
         return editable ? null : (
-          <Space size="middle">
-            <EditOutlined 
+          <span style={{ display: 'flex', gap: '10px' }}>
+            <EditOutlined
+              style={{ color: '#1890ff', cursor: 'pointer' }}
               onClick={() => edit(record)}
-              style={{ color: "#1890ff", cursor: "pointer" }}
             />
             <DeleteOutlined
-              onClick={() => handleDelete(record.id)}
-              style={{ color: "#ff4d4f", cursor: "pointer" }}
+              style={{ color: '#ff4d4f', cursor: 'pointer' }}
+              onClick={() => handleDelete(record.invoiceId)}
             />
-          </Space>
+          </span>
         );
       },
     },
   ];
 
   const mergedColumns = columns.map((col) => {
-    if (!col.editable) {
-      return col;
-    }
+    if (!col.editable) return col;
+
     return {
       ...col,
       onCell: (record) => ({
         record,
-        inputType: col.dataIndex === "dueMonth" ? "date" : "text",
         dataIndex: col.dataIndex,
         title: col.title,
         editing: isEditing(record),
+        form,
       }),
     };
   });
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: '20px' }}>
       <Row gutter={16}>
         <Col span={24}>
-          <Card title="Add Invoice" style={{ marginBottom: 20 }}>
-            {/* ... (keep your existing add form JSX) ... */}
+          <Card title="Add New Invoice" style={{ marginBottom: '20px' }}>
+            <Form layout="inline" onSubmitCapture={handleSubmit}>
+              <Form.Item label="Customer ID">
+                <Input
+                  name="customerId"
+                  placeholder="Customer ID"
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                />
+              </Form.Item>
+              <Form.Item label="Amount">
+                <Input
+                  name="amount"
+                  placeholder="Amount"
+                  value={invoice.amount}
+                  onChange={handleChange}
+                />
+              </Form.Item>
+              <Form.Item label="Due Month">
+                <DatePicker
+                  value={invoice.dueMonth}
+                  onChange={handleDateChange}
+                  format="YYYY-MM-DD"
+                />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" loading={submitting}>
+                  {submitting ? 'Adding...' : 'Add Invoice'}
+                </Button>
+              </Form.Item>
+            </Form>
           </Card>
 
-          <Card title="Invoice Data" style={{ marginBottom: 20 }}>
-            <Spin spinning={loading} indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />}>
-              <Form form={form} component={false}>
+          <Card title="Invoice Data" style={{ marginBottom: '20px' }}>
+            <Spin
+              spinning={loading}
+              indicator={<LoadingOutlined style={{ fontSize: 24 }} />}
+              tip="Loading Data..."
+            >
+              <Form form={form} component={false} onFinish={save}>
                 <Table
                   components={{
                     body: {
                       cell: EditableCell,
                     },
                   }}
+                  bordered
                   dataSource={invoices}
                   columns={mergedColumns}
-                  rowKey="id"
+                  rowKey="invoiceId"
                   pagination={{ pageSize: 5 }}
-                  onRow={(record) => ({
-                    onDoubleClick: () => edit(record),
-                  })}
                 />
               </Form>
             </Spin>
           </Card>
 
-          <Card title="Invoice Report">
-           {powerBiUrl ? (
+          <Card title="Invoice Analytics" style={{ marginBottom: '20px' }}>
+            {powerBiUrl ? (
               <iframe
-                title="Power BI Customer Line Chart"
-                width="1000"
+                title="Power BI Invoice Report"
+                width="900"
                 height="700"
                 src={powerBiUrl}
                 frameBorder="0"
                 allowFullScreen
               />
             ) : (
-              <p>No Power BI URL available</p>
+              <p>No Power BI report available</p>
             )}
           </Card>
         </Col>
