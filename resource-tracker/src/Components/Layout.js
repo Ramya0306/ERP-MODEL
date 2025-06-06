@@ -180,7 +180,7 @@ const AppLayout = ({ children }) => {
   <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
     <Space style={{ cursor: "pointer" }}>
       <Avatar icon={<UserOutlined />} />
-      {!collapsed && <Text>Admin User</Text>}
+      {!collapsed && <Text>Admin </Text>}
     </Space>
   </Dropdown>
 </Space>
