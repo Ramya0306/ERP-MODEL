@@ -15,6 +15,9 @@ import {
   LoadingOutlined,
   EditOutlined,
   DeleteOutlined,
+   UserAddOutlined,
+   TableOutlined ,
+   LineChartOutlined
 } from "@ant-design/icons";
 import axios from "axios";
 import { getPowerBIUrl } from "./powerBiUrls";
@@ -207,10 +210,10 @@ const Customer = () => {
 
   const columns = [
     { title: "Name", dataIndex: "name", key: "name", editable: true },
-    { title: "Customer ID", dataIndex: "id", key: "id" },
+    { title: "Customer ID", dataIndex: "id", key: "id",sorter: (a, b) => a.id - b.id },
     { title: "Contact", dataIndex: "contact", key: "contact", editable: true },
     { title: "Email", dataIndex: "email", key: "email", editable: true },
-    { title: "Date", dataIndex: "date", key: "date", editable: true },
+    { title: "Date", dataIndex: "date", key: "date",sorter: (a, b) => new Date(a.date) - new Date(b.date), editable: true },
     {
       title: "Location",
       dataIndex: "location",
@@ -285,113 +288,126 @@ const Customer = () => {
 
   return (
     <div style={{ padding: "20px" }}>
-      <Row gutter={18}>
-        <Col span={24}>
-          <Card title="Add Customer" style={{ marginBottom: "20px" }}>
-            <Form
-              layout="inline"
-              onSubmitCapture={handleSubmit}
-              style={{
-                display: "flex",
-                gap: "8px",
-                flexWrap: "nowrap",
-                alignItems: "center",
-              }}
-            >
-              <Form.Item label="Name:" style={{ marginBottom: 0 }}>
-                <Input
-                  style={{ width: 120 }}
-                  value={customer.name}
-                  onChange={(e) =>
-                    setCustomer({ ...customer, name: e.target.value })
-                  }
-                />
-              </Form.Item>
-              <Form.Item label="Contact:" style={{ marginBottom: 0 }}>
-                <Input
-                  style={{ width: 120 }}
-                  value={customer.contact}
-                  onChange={(e) =>
-                    setCustomer({ ...customer, contact: e.target.value })
-                  }
-                />
-              </Form.Item>
-              <Form.Item label="Email:" style={{ marginBottom: 0 }}>
-                <Input
-                  style={{ width: 160 }}
-                  value={customer.email}
-                  onChange={(e) =>
-                    setCustomer({ ...customer, email: e.target.value })
-                  }
-                />
-              </Form.Item>
-              <Form.Item label="Date:" style={{ marginBottom: 0 }}>
-                <DatePicker
-                  style={{ width: 130 }}
-                  format="YYYY-MM-DD"
-                  value={customer.date ? dayjs(customer.date) : null}
-                  onChange={handleDateChange}
-                />
-              </Form.Item>
-              <Form.Item label="Location:" style={{ marginBottom: 0 }}>
-                <Input
-                  style={{ width: 130 }}
-                  value={customer.location}
-                  onChange={(e) =>
-                    setCustomer({ ...customer, location: e.target.value })
-                  }
-                />
-              </Form.Item>
-              <Form.Item style={{ marginBottom: 0 }}>
-                <Button type="primary" htmlType="submit" loading={submitting}>
-                  {submitting ? "Adding..." : "Add Customer"}
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
-
-          <Card title="Customer Data" style={{ marginBottom: "20px" }}>
-            <Spin
-              spinning={loading}
-              indicator={<LoadingOutlined style={{ fontSize: 24 }} />}
-              tip="Loading Data..."
-            >
-              <SaveContext.Provider value={save}>
-                <CancelContext.Provider value={cancel}>
-                  <Form form={form} component={false}>
-                    <Table
-                      components={{
-                        body: {
-                          cell: EditableCell,
-                        },
-                      }}
-                      columns={mergedColumns}
-                      dataSource={customers}
-                      rowKey="id"
-                      pagination={{ pageSize: 5 }}
-                    />
-                  </Form>
-                </CancelContext.Provider>
-              </SaveContext.Provider>
-            </Spin>
-          </Card>
-
-          <Card title="Customer Trends">
-            {powerBiUrl ? (
-              <iframe
-                title="Power BI Customer Line Chart"
-                width="1000"
-                height="700"
-                src={powerBiUrl}
-                frameBorder="0"
-                allowFullScreen
+      <Row gutter={[16, 16]} justify="center">
+  <Col xs={24} md={24} lg={24}>
+   <Card
+  title={
+    <span>
+      <UserAddOutlined style={{ marginRight: 8 }} />
+      Add Customer
+    </span>
+  }
+  style={{ marginBottom: "20px", background: "#f8f9fa" }}
+>
+      <Form
+        layout="vertical"
+        onSubmitCapture={handleSubmit}
+      >
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <Form.Item label="Name:">
+              <Input value={customer.name} placeholder="Name" onChange={(e) => setCustomer({ ...customer, name: e.target.value })} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <Form.Item label="Contact:">
+              <Input value={customer.contact} placeholder="Contact" onChange={(e) => setCustomer({ ...customer, contact: e.target.value })} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <Form.Item label="Email:">
+              <Input value={customer.email} placeholder="Email"onChange={(e) => setCustomer({ ...customer, email: e.target.value })} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <Form.Item label="Date:">
+              <DatePicker
+                format="YYYY-MM-DD"
+                value={customer.date ? dayjs(customer.date) : null}
+                onChange={handleDateChange}
+                style={{ width: '100%' }}
               />
-            ) : (
-              <p>No Power BI URL available</p>
-            )}
-          </Card>
-        </Col>
-      </Row>
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <Form.Item label="Location:">
+              <Input value={customer.location} placeholder="Location" onChange={(e) => setCustomer({ ...customer, location: e.target.value })} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <Form.Item style={{ marginTop: 30 }}>
+              <Button type="primary" htmlType="submit" loading={submitting} block>
+                {submitting ? "Adding..." : "Add Customer"}
+              </Button>
+            </Form.Item>
+          </Col>
+        </Row>
+      </Form>
+    </Card>
+  </Col>
+
+  <Col xs={24}>
+    <Card
+  title={
+    <span>
+      <TableOutlined style={{ marginRight: 8 }} />
+      Customer Data
+    </span>
+  }
+  style={{ background: "#f8f9fa", marginBottom: 20 }}
+>
+      <Spin spinning={loading} indicator={<LoadingOutlined style={{ fontSize: 24 }} />} tip="Loading Data...">
+        <SaveContext.Provider value={save}>
+          <CancelContext.Provider value={cancel}>
+            <Form form={form} component={false}>
+              <Table
+                components={{
+                  body: {
+                    cell: EditableCell,
+                  },
+                }}
+                columns={mergedColumns}
+                dataSource={customers}
+                rowKey="id"
+                pagination={{ pageSize: 5 }}
+              />
+            </Form>
+          </CancelContext.Provider>
+        </SaveContext.Provider>
+      </Spin>
+    </Card>
+  </Col>
+
+  <Col xs={24}>
+    <Card title={
+    <span>
+      <LineChartOutlined style={{ marginRight: 8 }} />
+      Customer Trends
+    </span>} style={{ background: "#f8f9fa" }}>
+      {powerBiUrl ? (
+        <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", height: 0 }}>
+          <iframe
+            title="Power BI Customer Line Chart"
+            src='https://app.powerbi.com/view?r=eyJrIjoiNDZmMjlmYzItZmY0Mi00ZDY3LWIwZjktNDAzMGU1Y2ZjMjdmIiwidCI6ImNkYmI0MzAwLWFkZDEtNGEwNy1hYjMxLThjZDZmYzBmYjNjMiJ9'
+            frameBorder="0"
+            allowFullScreen
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              border: "none"
+            }}
+          />
+        </div>
+      ) : (
+        <p>No Power BI URL available</p>
+      )}
+    </Card>
+  </Col>
+</Row>
+
     </div>
   );
 };

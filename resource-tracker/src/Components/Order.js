@@ -10,9 +10,14 @@ import {
   Select,
   Spin,
   notification,
+
 } from 'antd';
 import axios from 'axios';
-import { LoadingOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { LoadingOutlined, EditOutlined, DeleteOutlined ,
+  ShoppingCartOutlined,
+  TableOutlined,
+  LineChartOutlined,
+} from '@ant-design/icons';
 import { getPowerBIUrl } from './powerBiUrls';
 
 const { Option } = Select;
@@ -216,7 +221,7 @@ const save = async () => {
     },
     {
       title: 'Customer ID',
-      
+      sorter: (a, b) => a.id - b.id,
       editable: false,
       render: (_, record) => {
     
@@ -232,6 +237,7 @@ const save = async () => {
     {
       title: 'Quantity',
       dataIndex: 'quantity',
+      sorter:(a,b)=>a.quantity-b.quantity,
       editable: true,
     },
     {
@@ -284,71 +290,97 @@ const save = async () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <Row gutter={16}>
-        <Col span={24}>
-          <Card title="Add New Order" style={{ marginBottom: '20px' }}>
+      <Row gutter={[16, 16]} justify="center">
+        <Col xs={24} md={24} lg={24}>
+          <Card title={
+             <span>
+      <ShoppingCartOutlined style={{ marginRight: 8 }} />
+      Add New Order
+    </span>
+          } style={{ marginBottom: '20px' ,background: "#f8f9fa"}}>
             <Form
-              layout="inline"
+              layout="vertical"
               onSubmitCapture={handleSubmit}
               style={{ display: 'flex', gap: '8px', flexWrap: 'nowrap', alignItems: 'center' }}
             >
+              <Row gutter={[16, 16]}>
+                        <Col xs={24} sm={12} md={8} lg={6}>
               <Form.Item label="Customer ID">
                 <Input
-                  style={{ width: 120 }}
+                  
                   name="customerId"
                   placeholder="Customer ID"
                   value={customerId}
                   onChange={(e) => setCustomerId(e.target.value)}
                 />
               </Form.Item>
+              </Col>
+               <Col xs={24} sm={12} md={8} lg={6}>
               <Form.Item label="Product">
                 <Input
-                  style={{ width: 120 }}
+                  
                   name="product"
                   placeholder="Product"
                   value={order.product}
                   onChange={handleChange}
                 />
               </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={6}>
               <Form.Item label="Quantity">
                 <Input
-                  style={{ width: 120 }}
+                  
                   name="quantity"
                   placeholder="Quantity"
                   value={order.quantity}
                   onChange={handleChange}
                 />
               </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={6}>
               <Form.Item label="Amount">
                 <Input
-                  style={{ width: 120 }}
+                  
                   name="amount"
                   placeholder="Total Amount"
                   value={order.amount}
                   onChange={handleChange}
                 />
               </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={6}>
               <Form.Item label="Status">
                 <Select
                   placeholder="Status"
-                  value={order.status}
+                 value={order.status || undefined}
                   onChange={handleStatusChange}
-                  style={{ width: 120 }}
+                  
                 >
                   <Option value="Pending">Pending</Option>
                   <Option value="Completed">Completed</Option>
                   <Option value="Cancelled">Cancelled</Option>
                 </Select>
               </Form.Item>
-              <Form.Item>
-                <Button type="primary" htmlType="submit" loading={submitting}>
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item style={{ marginTop: 30 }}>
+               
+                <Button type="primary" htmlType="submit" loading={submitting} block>
                   {submitting ? 'Adding...' : 'Add Order'}
                 </Button>
               </Form.Item>
+              </Col>
+              </Row>
             </Form>
           </Card>
-
-          <Card title="Order Data" style={{ marginBottom: '20px' }}>
+          </Col>
+           <Col xs={24}>
+          <Card title={
+            <span>
+              <TableOutlined style={{ marginRight: 8 }}/>
+              Order Data
+            </span>
+             }style={{ marginBottom: '20px',background: "#f8f9fa" }}>
             <Spin
               spinning={loading}
               indicator={<LoadingOutlined style={{ fontSize: 24 }} />}
@@ -371,14 +403,18 @@ const save = async () => {
               </Form>
             </Spin>
           </Card>
-
-          <Card title="Order Analytics" style={{ marginBottom: '20px' }}>
+         </Col>
+          <Col xs={24}>
+          <Card title={
+            <span>
+             <LineChartOutlined style={{ marginRight: 8 }}/> Order Trends
+            </span>} style={{ marginBottom: '20px' ,background: "#f8f9fa"}}>
             {powerBiUrl ? (
               <iframe
                 title="Power BI Order Pie Chart"
                 width="900"
                 height="700"
-                src={powerBiUrl}
+                src='https://app.powerbi.com/view?r=eyJrIjoiZGMyYzk0MzEtYjA1OC00YTYwLWJkNmQtYWYyMDg1MjhmNDRhIiwidCI6ImNkYmI0MzAwLWFkZDEtNGEwNy1hYjMxLThjZDZmYzBmYjNjMiJ9'
                 frameBorder="0"
                 allowFullScreen
               />

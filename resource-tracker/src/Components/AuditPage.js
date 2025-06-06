@@ -195,7 +195,7 @@ const LogAuditTrail = () => {
   ];
 
   return (
-    <Card title="Audit Trail Logs" style={{ margin: 16 }}>
+    <Card title="Audit Trail Logs" style={{ margin: 16 ,background: "#f8f9fa"}}>
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Select
@@ -205,8 +205,8 @@ const LogAuditTrail = () => {
           >
             <Option value="All">All Entities</Option>
             <Option value="Customer">Customer</Option>
-            <Option value="User">User</Option>
-            <Option value="Product">Product</Option>
+            <Option value="Order">Order</Option>
+            <Option value="Invoice">Invoice</Option>
           </Select>
         </Col>
         <Col span={10}>

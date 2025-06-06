@@ -13,7 +13,8 @@ import {
 } from 'antd';
 import axios from 'axios';
 import dayjs from 'dayjs';
-import { LoadingOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { LoadingOutlined, EditOutlined, DeleteOutlined,TableOutlined,
+  LineChartOutlined,FormOutlined } from '@ant-design/icons';
 import { getPowerBIUrl } from './powerBiUrls';
 
 const EditableCell = ({
@@ -81,6 +82,8 @@ const Invoice = () => {
   const [invoice, setInvoice] = useState({
     invoiceId: '',
     amount: '',
+    supplierName:'',
+    description:'',
     dueMonth: null,
   });
   const [customerId, setCustomerId] = useState('');
@@ -128,6 +131,8 @@ const Invoice = () => {
 
       const updatedInvoice = {
         ...originalInvoice,
+        supplierName:values.supplierName,
+        description:values.description,
         amount: parseFloat(values.amount),
         dueMonth: values.dueMonth ? values.dueMonth.format('YYYY-MM-DD') : null,
       };
@@ -220,8 +225,21 @@ const Invoice = () => {
       title: 'Customer ID',
       dataIndex: ['customer', 'id'],
       key: 'customerId',
+      sorter: (a, b) => a.customerId - b.customerId,
       editable: false,
       render: (_, record) => record.customer?.id || '',
+    },
+    {
+      title: 'Supplier Name',
+      dataIndex: 'supplierName',
+      key: 'supplierName',
+      editable: true,
+    },
+    {
+      title: 'Description',
+      dataIndex: 'description',
+      key: 'description',
+      editable: true,
     },
     {
       title: 'Amount',
@@ -234,6 +252,7 @@ const Invoice = () => {
       dataIndex: 'dueMonth',
       key: 'dueMonth',
       editable: true,
+      sorter: (a, b) => new Date(a.dueMonth) - new Date(b.dueMonth),
       render: (text) => (text ? dayjs(text).format('YYYY-MM-DD') : ''),
     },
     {
@@ -275,10 +294,16 @@ const Invoice = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <Row gutter={16}>
-        <Col span={24}>
-          <Card title="Add New Invoice" style={{ marginBottom: '20px' }}>
-            <Form layout="inline" onSubmitCapture={handleSubmit}>
+        <Row gutter={[16, 16]} justify="center">
+          <Col xs={24} md={24} lg={24}>
+          <Card title={
+            <span>
+              <FormOutlined style={{ marginRight: 8 }}/>
+              Add New Invoice
+            </span>} style={{ marginBottom: '20px' ,background: "#f8f9fa"}}>
+            <Form layout="vertical" onSubmitCapture={handleSubmit}>
+              <Row gutter={[16, 16]}>
+                        <Col xs={24} sm={12} md={8} lg={6}>
               <Form.Item label="Customer ID">
                 <Input
                   name="customerId"
@@ -287,30 +312,67 @@ const Invoice = () => {
                   onChange={(e) => setCustomerId(e.target.value)}
                 />
               </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item label="Supplier Name">
+                <Input
+                
+                  name="supplierName"
+                  placeholder="Supplier Name"
+                  value={invoice.supplierName}
+                  onChange={handleChange}
+                />
+                </Form.Item>
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={6}>
+                <Form.Item label="Description">
+                <Input
+                
+                  name="description"
+                  placeholder="Description"
+                  value={invoice.description}
+                  onChange={handleChange}
+                />
+                </Form.Item>
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={6}>
               <Form.Item label="Amount">
                 <Input
+                
                   name="amount"
                   placeholder="Amount"
                   value={invoice.amount}
                   onChange={handleChange}
                 />
               </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={6}>
               <Form.Item label="Due Month">
                 <DatePicker
+                  style={{ width: '100%' }}
                   value={invoice.dueMonth}
                   onChange={handleDateChange}
                   format="YYYY-MM-DD"
                 />
               </Form.Item>
-              <Form.Item>
-                <Button type="primary" htmlType="submit" loading={submitting}>
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={6}>
+              <Form.Item style={{ marginTop: 30 }}>
+                <Button type="primary" htmlType="submit" loading={submitting} block>
                   {submitting ? 'Adding...' : 'Add Invoice'}
                 </Button>
               </Form.Item>
+              </Col>
+              </Row>
             </Form>
           </Card>
-
-          <Card title="Invoice Data" style={{ marginBottom: '20px' }}>
+          </Col>
+           <Col xs={24}>
+          <Card title={
+            <span>
+              <TableOutlined style={{ marginRight: 8 }}/>
+            Invoice Data
+            </span>} style={{ marginBottom: '20px' ,background: "#f8f9fa"}}>
             <Spin
               spinning={loading}
               indicator={<LoadingOutlined style={{ fontSize: 24 }} />}
@@ -332,14 +394,19 @@ const Invoice = () => {
               </Form>
             </Spin>
           </Card>
-
-          <Card title="Invoice Analytics" style={{ marginBottom: '20px' }}>
+          </Col>
+           <Col xs={24}>
+          <Card title={
+            <span>
+              <LineChartOutlined style={{ marginRight: 8 }}/>
+              Invoice Analytics
+            </span>} style={{ marginBottom: '20px',background: "#f8f9fa" }}>
             {powerBiUrl ? (
               <iframe
                 title="Power BI Invoice Report"
                 width="900"
                 height="700"
-                src={powerBiUrl}
+                src='https://app.powerbi.com/view?r=eyJrIjoiYjFlMzJmZTUtMDE3ZC00YmI4LWIxYjEtNDkwMGQyNTM2ZmY3IiwidCI6ImNkYmI0MzAwLWFkZDEtNGEwNy1hYjMxLThjZDZmYzBmYjNjMiJ9'
                 frameBorder="0"
                 allowFullScreen
               />
